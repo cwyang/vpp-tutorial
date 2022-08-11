@@ -84,7 +84,7 @@ function dns_setup {
 }
 
 function usage {
-    echo "Usage: $0 {netns|vpp|ping}"
+    echo "Usage: $0 {netns|vpp|ping|pong}"
 }
 rc=255
 case "$1" in
@@ -105,16 +105,20 @@ case "$1" in
 	    echo $vppctl create host-interface name ${entity_nss[i]}-$nic_name
 	    $vppctl set interface ip address host-${entity_nss[i]}-$nic_name ${router_addrs[i]}
 	    $vppctl set interface state host-${entity_nss[i]}-$nic_name up
+	    # add routing
+	    $vppctl ip route add ${entity_nets[i]} via ${entity_addrs[i]%/*}
 	done
-	# add route client -> server on ns(client)
-	ip_ns ${entity_nss[0]} route add ${entity_nets[1]} via ${router_addrs[0]%/*}
-	# add route server -> client on vpp
-	$vppctl ip route add ${entity_nets[0]} via ${entity_addrs[0]%/*}
 	;;
     ping)
 	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
 	for t in ${targets[@]}; do
 	    exec_ns ${entity_nss[0]} ping -qc 1 -W 1 $t
+	done
+	;;
+    pong)
+	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
+	for t in ${targets[@]}; do
+	    exec_ns ${entity_nss[1]} ping -qc 1 -W 1 $t
 	done
 	;;
     *)
