@@ -8,7 +8,7 @@
 # server network: 10.10.2.0/24 netns server
 #
 #  Client (C)    ======= ROUTER (R) =======    SERVER (S)
-# 10.10.1.1/24   10.10.1.2/24  10.10.2.2/24   10.10.2.1/24
+# 10.10.1.2/24   10.10.1.1/24  10.10.2.1/24   10.10.2.2/24, 10.10.2.3/32
 #   veth0        client-veth0  server-veth0       veth0
 #     |               |              |              |
 #     +---------------+              +--------------+
@@ -40,8 +40,9 @@ nsr="router"
 nss="server"
 entity_nss=($nsc $nss)
 entity_nets=("10.10.1.0/24" "10.10.2.0/24")
-entity_addrs=("10.10.1.1/24" "10.10.2.1/24")
-router_addrs=("10.10.1.2/24" "10.10.2.2/24")
+entity_addrs=("10.10.1.2/24" "10.10.2.2/24")
+router_addrs=("10.10.1.1/24" "10.10.2.1/24")
+aux_srv_addr="10.10.2.3"
 
 function exec_ns {
     local ns="$1"; shift
@@ -95,6 +96,8 @@ case "$1" in
 	done
 	make_vethpair $nsc $nsr ${entity_addrs[0]} ${router_addrs[0]}
 	make_vethpair $nss $nsr ${entity_addrs[1]} ${router_addrs[1]}
+	# server additional address
+	ip_ns $nss addr add $aux_srv_addr dev $nic_name
 	;;
     vpp)
 	exec_ns $nsr pkill vpp || true
@@ -108,12 +111,27 @@ case "$1" in
 	    # add routing
 	    $vppctl ip route add ${entity_nets[i]} via ${entity_addrs[i]%/*}
 	done
+	# sample acl rule
+	$vppctl ip route add ${aux_srv_addr}/32 via ${entity_addrs[1]%/*}
+	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
+	rule=""
+	for t in ${targets[@]}; do
+	    rule="$rule proto 1 dst $t/32," # icmp
+	done
+	rule=${rule%,}
+	echo $vppctl set acl-plugin acl permit $rule
+	$vppctl set acl-plugin acl permit $rule
+	$vppctl set acl-plugin acl deny
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 0
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 1
+	$vppctl show acl-plugin interface sw_if_index 1 acl
 	;;
     ping)
 	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
 	for t in ${targets[@]}; do
 	    exec_ns ${entity_nss[0]} ping -qc 1 -W 1 $t
 	done
+	exec_ns ${entity_nss[0]} ping -qc 1 -W 1 $aux_srv_addr || echo "OK: acl denies to 10.10.2.3."
 	;;
     pong)
 	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
