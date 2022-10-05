@@ -116,11 +116,36 @@ case "$1" in
 	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
 	rule=""
 	for t in ${targets[@]}; do
-	    rule="$rule proto 1 dst $t/32," # icmp
+	    rule="$rule permit+reflect proto 6 dst $t/32," # icmp
 	done
 	rule=${rule%,}
-	echo $vppctl set acl-plugin acl permit $rule
-	$vppctl set acl-plugin acl permit $rule
+	echo $vppctl set acl-plugin acl $rule
+	$vppctl set acl-plugin acl $rule tag example_permit_0
+	$vppctl set acl-plugin acl deny # tag example_deny_0
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 0
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 1
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name output acl 1
+	$vppctl show acl-plugin interface sw_if_index 1 acl
+	;;
+    vpp2)
+	for i in ${!entity_nss[@]}; do
+	    $vppctl create host-interface name ${entity_nss[i]}-$nic_name
+	    echo $vppctl create host-interface name ${entity_nss[i]}-$nic_name
+	    $vppctl set interface ip address host-${entity_nss[i]}-$nic_name ${router_addrs[i]}
+	    $vppctl set interface state host-${entity_nss[i]}-$nic_name up
+	    # add routing
+	    $vppctl ip route add ${entity_nets[i]} via ${entity_addrs[i]%/*}
+	done
+	# sample acl rule
+	$vppctl ip route add ${aux_srv_addr}/32 via ${entity_addrs[1]%/*}
+	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
+	rule=""
+	for t in ${targets[@]}; do
+	    rule="$rule permit+reflect proto 6 dst $t/32," # icmp
+	done
+	rule=${rule%,}
+	echo $vppctl set acl-plugin acl $rule
+	$vppctl set acl-plugin acl $rule
 	$vppctl set acl-plugin acl deny
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 0
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 1
