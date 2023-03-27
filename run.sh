@@ -99,6 +99,10 @@ case "$1" in
 	# server additional address
 	ip_ns $nss addr add $aux_srv_addr dev $nic_name
 	;;
+    gdb)
+	exec_ns $nsr pkill vpp || true
+	(cd /home/vagrant/vpp-dev; exec_ns $nsr make debug)
+	;;
     vpp)
 	exec_ns $nsr pkill vpp || true
 	exec_ns $nsr $vpp -c $vppconf
@@ -116,12 +120,14 @@ case "$1" in
 	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
 	rule=""
 	for t in ${targets[@]}; do
-	    rule="$rule permit+reflect proto 6 dst $t/32," # icmp
+	    rule="$rule permit proto 6 dst $t/32 desc $t," # icmp
+	    #rule="$rule permit+reflect proto 6 dst $t/32 desc $t," # icmp
 	done
 	rule=${rule%,}
 	echo $vppctl set acl-plugin acl $rule
 	$vppctl set acl-plugin acl $rule tag example_permit_0
 	$vppctl set acl-plugin acl deny # tag example_deny_0
+	#$vppctl set acl-plugin acl permit # tag example_deny_0
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 0
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 1
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name output acl 1
