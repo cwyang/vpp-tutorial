@@ -14,9 +14,9 @@ cpu {
     workers 3
 }
 unix {
-    interactive
+    #interactive
     cli-listen /run/vpp/${ID}.sock
-    log /var/log/vpp/vpp.log
+    log /var/log/vpp/${ID}.log
 }
 api-segment {
     prefix ${ID}
