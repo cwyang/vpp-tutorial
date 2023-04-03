@@ -1,0 +1,12 @@
+sudo ip netns exec client telnet 10.10.2.2 1111
+sudo ip netns exec server ncat -e /bin/cat -kl 1111
+
+sudo bash -c "cd /home/vagrant/vpp-dev; ip netns exec router vpp -c vpp1.conf"
+sudo bash -c "cd /home/vagrant/vpp-dev; ip netns exec router make debug"
+
+alias gitlog='git log --graph --format='\''%C(10)%h%Creset %s (%an)'\'''
+export EDITOR=vi
+alias v1='sudo vppctl -s /run/vpp/vpp1.sock'
+alias v2='sudo vppctl -s /run/vpp/vpp2.sock'
+
+v1 show acl-plugin sessions verbose 1
