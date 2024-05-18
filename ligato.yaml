@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd
+    container_name: etcd
+    ports:
+      - "2379:2379"
+    environment:
+      - ETCDCTL_API=3
+    command: >
+      /usr/local/bin/etcd
+      -advertise-client-urls http://0.0.0.0:2379
+      -listen-client-urls http://0.0.0.0:2379
+
+  vpp-agent:
+    image: ligato/vpp-agent
+    container_name: vpp-agent
+    ports:
+      - "5002:5002"  # cli
+      - "9191:9191"  # api
+    privileged: true
