@@ -74,6 +74,7 @@ function run_vpp {
     local peerwgaddr="$1"; shift
     local myprvkey="$1"; shift
     local peerpubkey="$1"; shift
+    local cipher="$1"; shift
     local port=55555
 
     local vppctl
@@ -92,6 +93,8 @@ function run_vpp {
     $vppctl set interface ip address host-veth$id $addr/24
     $vppctl set interface ip address host-veth$id $privaddr/32
     $vppctl set interface state host-veth$id up
+    $vppctl set crypto handler aes-128-gcm ipsecmb
+    $vppctl set wireguard cipher $cipher
     $vppctl wireguard create listen-port $port \
 	    private-key $myprvkey src $addr
     $vppctl set interface state wg0 up
@@ -116,11 +119,13 @@ case "$1" in
 	pkill vpp || true
 	run_vpp 1 172.17.0.2 172.17.0.1 192.168.0.2 10.1.0.2 172.17.0.3 10.1.0.3 \
 		oNWegnCt9QIQ7ik3fCqlKXsY9M6OZpqyJtR6A7a0wHY= \
-		3i1WMY6eCIYEX1djjCtLHLU7zqsSDH85r52KrznsxAc=
+		3i1WMY6eCIYEX1djjCtLHLU7zqsSDH85r52KrznsxAc= \
+		aes
 
 	run_vpp 2 172.17.0.3 172.17.0.1 192.168.0.3 10.1.0.3 172.17.0.2 10.1.0.2 \
 		SBCMKqPqmc0PivhTyZmiXy1hJgF3sbQu/b/5gVDeoFM= \
-		5E8ynZHX31vER1CE2FAxTP944h6pxsb6ely5eCmaXEc=
+		5E8ynZHX31vER1CE2FAxTP944h6pxsb6ely5eCmaXEc= \
+		aes
 	;;
     
     ping)
