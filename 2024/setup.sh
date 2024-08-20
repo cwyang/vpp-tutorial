@@ -93,7 +93,7 @@ setup_vpp
 
 exit 0
 
-## gre span시 erspan arg 없으면 죽는 곳
+## span destination을 (non erspan) gre tunnel로 지정하면 아래에서 죽는다
 Aug 20 22:19:14 mars vnet[27897]: /home/ubuntu/vpp-dev/src/vnet/adj/adj.h:462 (adj_get) assertion `! pool_is_free (adj_pool, _e)' fails
 Aug 20 22:19:14 mars vnet[27897]: received signal SIGABRT, PC 0x7f4fa21ab9fc
 Aug 20 22:19:14 mars vnet[27897]: #0  0x00007f4fa25e5e5c unix_signal_handler + 0x1ec

@@ -187,17 +187,12 @@ ubuntu@moon:~$ curl -q -o /dev/null http://192.168.0.50:8000
 comment create gre tunnel src <addr> dst <addr> [instance <n>]
 	[outer-fib-id <fib>] [teb | erspan <session-id>] [del] [multipoint]
 
-ip table add 1
-DBGvpp# create gre tunnel src 10.20.1.2 dst 10.20.1.1 instance 1 outer-table-id 1 erspan 1
-gre0
-DBGvpp# show gre tunnel
-[0] instance 0 src 10.20.1.2 dst 10.20.1.1 fib-idx 0 sw-if-idx 4 payload L3 point-to-point
-DBGvpp# set inter state gre1 up
-set interface span host-svr-vpp destination gre1
+ubuntu@mars$ ./setup.sh # NAT and ERSPAN setup
 
-se
-
-
-set interface erspan <source-interface> destination <destination-ip> session-id <session-id>
-]
+root@mars:/home/ubuntu# ip netns exec span tcpdump -n -i erspan1
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on erspan1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+<mirrored packet captured>
 ```
+
+# VXLAN
