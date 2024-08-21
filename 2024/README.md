@@ -178,7 +178,7 @@ ubuntu@moon:~$ curl -q -o /dev/null http://192.168.0.50:8000
 ...
 ```
 
-# ERSPAN
+# ERSPAN / VXLAN
 ```
 [@VPP vpp(192.168.0.50) -- svr-vpp(10.10.1.2/24) ] -- [@svr-netns  svr-host(10.10.1.1/24)  -- web-server]
                            |
@@ -187,12 +187,10 @@ ubuntu@moon:~$ curl -q -o /dev/null http://192.168.0.50:8000
 comment create gre tunnel src <addr> dst <addr> [instance <n>]
 	[outer-fib-id <fib>] [teb | erspan <session-id>] [del] [multipoint]
 
-ubuntu@mars$ ./setup.sh # NAT and ERSPAN setup
+ubuntu@mars$ ./setup.sh # NAT and ERSPAN/VXLAN setup
 
 root@mars:/home/ubuntu# ip netns exec span tcpdump -n -i erspan1
 tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
 listening on erspan1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 <mirrored packet captured>
 ```
-
-# VXLAN

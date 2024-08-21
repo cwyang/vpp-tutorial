@@ -3,7 +3,8 @@
 vppctl='sudo vppctl'
 ip='sudo ip'
 
-tunnel_mode="erspan" # [ gre | erspan ], currently only erspan works
+tunnel_mode="vxlan" # [ gre | erspan | vxlan ], gre does not work
+tunnel_id="100"
 
 function prepare_nic {
     local ns="$1"; shift
@@ -27,9 +28,12 @@ function setup_tunnel {
     # https://developers.redhat.com/blog/2019/05/17/an-introduction-to-linux-virtual-interfaces-tunnels#erspan_and_ip6erspan
     local type="${1:-gre}"; shift
     local nic="${type}1"
-
+    local physnic="span-host"
+    
     if [ "$type" = "erspan" ]; then
-	$ip netns exec span ip link add dev $nic type $type remote 10.20.1.2 local 10.20.1.1 seq key 1 erspan_ver 1 erspan 1
+	$ip netns exec span ip link add dev $nic type $type remote 10.20.1.2 local 10.20.1.1 erspan_ver 1 erspan 1 seq key $tunnel_id
+    elif [ "$type" = "vxlan" ]; then
+	$ip netns exec span ip link add $nic type $type dev $physnic remote 10.20.1.2 local 10.20.1.1 dstport 4789 id $tunnel_id
     else
 	$ip netns exec span ip tunnel add $nic mode $type remote 10.20.1.2 local 10.20.1.1
 	#$ip netns exec span ip link add dev $nic type $type remote 10.20.1.2 local 10.20.1.1
@@ -48,20 +52,20 @@ function setup_host {
 
 function setup_vpp_tunnel {
     local type="${1:-gre}"; shift
-    local arg=""
-    if [ "$type" = "erspan" ]; then
-	arg="erspan 1"
+    local nic="gre1"
+
+    if [ "$type" = "vxlan" ]; then
+	$vppctl create vxlan tunnel src 10.20.1.2 dst 10.20.1.1 instance 1 vni $tunnel_id
+	nic="vxlan_tunnel1"
+    elif [ "$type" = "erspan" ]; then
+	$vppctl create gre tunnel src 10.20.1.2 dst 10.20.1.1 instance 1 outer-table-id 0 erspan $tunnel_id
+    else
+	$vppctl create gre tunnel src 10.20.1.2 dst 10.20.1.1 instance 1 outer-table-id 0
     fi
 
-    # erspan 없이 gre모드에서 span하면 
-    #span vrf를 별도로 분리하면 어떤 때 좋은가?
-    #$vppctl ip table add 1
-
-    #$vppctl create gre tunnel src 10.20.1.2 dst 10.20.1.1 instance 1 outer-table-id 0 $arg
-    $vppctl create gre tunnel src 10.20.1.2 dst 10.20.1.1 instance 1 outer-table-id 0 $arg
-    $vppctl set inter ip addr gre1 192.168.100.2/32
-    $vppctl set inter state gre1 up
-    $vppctl set inter span host-svr-vpp destination gre1
+    $vppctl set inter ip addr $nic 192.168.100.2/32
+    $vppctl set inter state $nic up
+    $vppctl set inter span host-svr-vpp destination $nic
     #$vppctl show gre tunnel
     #$vppctl show inter span
 }
