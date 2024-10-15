@@ -92,8 +92,8 @@ function setup_vpp {
 
     $vppctl nat44 plugin enable sessions 10000
     $vppctl set interface nat44 in host-svr-vpp out $nat_nic # output-feature is needed?
-    $vppctl nat44 add static mapping tcp local 10.10.1.1 external $vip
-    $vppctl nat44 add address $vip
+    $vppctl nat44 add static mapping tcp local 10.10.1.1 external $server_ip
+    $vppctl nat44 add address $server_ip
 
     $vppctl trace add af-packet-input 100
     #$vppctl nat44 forwarding enable

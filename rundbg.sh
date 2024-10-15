@@ -111,6 +111,7 @@ function create_vpp_interface() {
     local routers=($1 $2); shift 2
     local nic="$1"; shift
     for i in ${!entity_nss[@]}; do
+echo	vppctl_with $id create host-interface name ${entity_nss[i]}-$nic #num-rx-queues 2 num-tx-queues 2
 	vppctl_with $id create host-interface name ${entity_nss[i]}-$nic #num-rx-queues 2 num-tx-queues 2
 	vppctl_with $id set interface ip address host-${entity_nss[i]}-$nic ${routers[i]}
 	vppctl_with $id set interface state host-${entity_nss[i]}-$nic up
@@ -129,12 +130,12 @@ case "$1" in
 	    make_ns $ns
 	    $echo dns_setup $ns
 	done
-	make_vethpair $nic_names[0] $nsc $nsr ${entity_addrs[0]} ${router_addrs[0]} default
-	make_vethpair $nic_names[0] $nss $nsr ${entity_addrs[1]} ${router_addrs[1]} default
-	make_vethpair $nic_names[1] $nsc $nsr ${entity2_addrs[0]} ${router2_addrs[0]} ${entity2_nets[1]}
-	make_vethpair $nic_names[1] $nss $nsr ${entity2_addrs[1]} ${router2_addrs[1]} ${entity2_nets[0]}
+	make_vethpair ${nic_names[0]} $nsc $nsr ${entity_addrs[0]} ${router_addrs[0]} default
+	make_vethpair ${nic_names[0]} $nss $nsr ${entity_addrs[1]} ${router_addrs[1]} default
+	make_vethpair ${nic_names[1]} $nsc $nsr ${entity2_addrs[0]} ${router2_addrs[0]} ${entity2_nets[1]}
+	make_vethpair ${nic_names[1]} $nss $nsr ${entity2_addrs[1]} ${router2_addrs[1]} ${entity2_nets[0]}
 	# server additional address
-	ip_ns $nss addr add $aux_srv_addr dev $nic_names[0]
+	ip_ns $nss addr add $aux_srv_addr dev ${nic_names[0]}
 	;;
     gdb)
 	exec_ns $nsr pkill vpp || true
