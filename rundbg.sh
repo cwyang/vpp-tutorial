@@ -156,9 +156,9 @@ case "$1" in
 	rule1=""
 	for t in ${targets[@]}; do
 	    #rule="$rule permit+reflect proto 6 dst $t/32," # icmp
-	    rule="$rule permit+reflect proto 6 dst $t/32 desc {$t}," # icmp
+	    rule="$rule permit+reflect proto 6 dst $t/32 desc {$t} ," # icmp
 	    #rule="$rule permit proto 6 dst $t/32 desc {$t}," # icmp
-	    rule1="$rule1 deny proto 6 src $t/32 desc {hmm-$t}," # icmp
+	    rule1="$rule1 deny proto 6 src $t/32 desc {hmm-$t} ," # icmp
 	done
 	rule=${rule%,}
 	rule1=${rule1%,}
@@ -171,8 +171,10 @@ case "$1" in
 	vppctl_with $id set acl-plugin interface host-${entity_nss[0]}-${nic_names[$i]} input acl 2
 	vppctl_with $id set acl-plugin interface host-${entity_nss[0]}-${nic_names[$i]} output acl 0
 	vppctl_with $id set acl-plugin interface host-${entity_nss[0]}-${nic_names[$i]} output acl 2
+	vppctl_with $id set acl-plugin reclassify-sessions 1
 	vppctl_with $id show acl-plugin interface sw_if_index 1 acl
 	done
+	vppctl_with vpp1 set acl-plugin log enable
 	# connect two vpps
 	vppctl_with vpp1 create interface memif id 0 master
 	vppctl_with vpp1 set interface state memif0/0 up
@@ -199,7 +201,7 @@ case "$1" in
 	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
 	rule=""
 	for t in ${targets[@]}; do
-	    rule="$rule permit+reflect proto 6 dst $t/32," # icmp
+	    rule="$rule permit+reflect proto 6 dst $t/32 ," # icmp
 	done
 	rule=${rule%,}
 	echo $vppctl set acl-plugin acl $rule

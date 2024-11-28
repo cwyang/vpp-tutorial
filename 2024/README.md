@@ -194,3 +194,26 @@ tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
 listening on erspan1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 <mirrored packet captured>
 ```
+
+# Running socat as SSL terminator
+```
+ubuntu@mars$ ./setup.sh # NAT, ERSPAN/VXLAN and egress setup
+
+$ apt-get install socat
+$ openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.pem
+$ sudo socat openssl-listen:443,reuseaddr,cert=server.pem,key=server.key,verify=0,fork tcp:www.badssl.com:80
+
+ubuntu@mars:~$ curl -k --resolve www.badssl.com:443:127.0.0.1 https://www.badssl.com
+<html>
+<head><title>301 Moved Permanently</title></head>
+<body bgcolor="white">
+<center><h1>301 Moved Permanently</h1></center>
+<hr><center>nginx/1.10.3 (Ubuntu)</center>
+</body>
+</html>
+
+ubuntu@moon:~$ curl -k --resolve www.badssl.com:443:192.168.0.51 https://www.badssl.com/
+
+
+
+```

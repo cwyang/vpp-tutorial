@@ -117,11 +117,12 @@ case "$1" in
 	done
 	# sample acl rule
 	$vppctl ip route add ${aux_srv_addr}/32 via ${entity_addrs[1]%/*}
-	targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1)
+	#targets=(10.10.1.1 10.10.1.2 10.10.2.2 10.10.2.1 10.10.2.2)
+	targets=(10.10.2.2 10.10.1.2)
 	rule=""
 	for t in ${targets[@]}; do
-	    rule="$rule permit proto 6 dst $t/32 desc $t," # icmp
-	    #rule="$rule permit+reflect proto 6 dst $t/32 desc $t," # icmp
+	    #rule="$rule permit proto 6 dst $t/32 desc $t," # icmp
+	    rule="$rule permit+reflect proto 6 dst $t/32 desc $t ," # icmp
 	done
 	rule=${rule%,}
 	echo $vppctl set acl-plugin acl $rule
@@ -129,9 +130,18 @@ case "$1" in
 	$vppctl set acl-plugin acl deny # tag example_deny_0
 	#$vppctl set acl-plugin acl permit # tag example_deny_0
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 0
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name output acl 0
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 1
 	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name output acl 1
 	$vppctl show acl-plugin interface sw_if_index 1 acl
+	$vppctl set acl-plugin log enable
+	$vppctl set acl-plugin reclassify-sessions 1
+	;;
+    policy)
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 0
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name output acl 0
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name input acl 1
+	$vppctl set acl-plugin interface host-${entity_nss[0]}-$nic_name output acl 1
 	;;
     vpp2)
 	for i in ${!entity_nss[@]}; do
