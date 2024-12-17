@@ -114,7 +114,9 @@ function make_vethpair() {
     $ip link set $nic_name netns $ns
     $ip link set $ns-$nic_name netns $peer_ns
     # my addr
-    ip_ns $ns addr add $addr dev $nic_name
+    if [[ $addr != "none" ]]; then
+	ip_ns $ns addr add $addr dev $nic_name
+    fi
     if [[ $peer_addr != "none" ]]; then
 	ip_ns $peer_ns addr add $peer_addr dev $ns-$nic_name
     fi
@@ -160,19 +162,29 @@ function dns_setup() {
     echo "nameserver 8.8.8.8" > $path/resolv.conf
 }
 
+function get_host_nic_macaddr() {
+    local ns="$1"; shift
+    local nic="$1"; shift
+    local mac
+    mac=$(ip netns exec $ns ip a show "$nic" | awk '/link\/ether/ {print $2}')
+    printf "${mac}\n"
+}
+
 function create_vpp_interface() {
     local id="$1"; shift
     local net="$1"; shift
     local addr="$1"; shift
     local router="$1"; shift
     local nic="$1"; shift
-
-    echo vppctl_with $id create host-interface name $nic #num-rx-queues 2 num-tx-queues 2
-    vppctl_with $id create host-interface name $nic #num-rx-queues 2 num-tx-queues 2    
-    vppctl_with $id set interface ip address host-$nic $router    
+    local mac=$(get_host_nic_macaddr $nsr $nic)
+    
+    echo vppctl_with $id create host-interface name $nic mac=$mac #num-rx-queues 2 num-tx-queues 2
+    vppctl_with $id create host-interface name $nic #num-rx-queues 2 num-tx-queues 2
+    vppctl_with $id set interface ip address host-$nic $addr
+    vppctl_with $id set interface mac address host-$nic $mac
     vppctl_with $id set interface state host-$nic up
     # add routing
-    vppctl_with $id ip route add $net via ${addr%/*}
+    vppctl_with $id ip route add $net via ${router%/*}
     echo $nic done
 }
 function usage {
@@ -181,8 +193,7 @@ function usage {
 rc=255
 case "$1" in
     test)
-	echo $(generate_mac)
-	echo $(generate_mac 11)
+	echo $(get_host_nic_macaddr 0 eth0)
 	;;
     ns|netns)
 	for ns in $nsc $nsr $nsr2 $nss $nscgw $nssgw $nsrgw; do
@@ -193,7 +204,8 @@ case "$1" in
 	make_vethpair veth0 $nss $nssgw 10.20.1.2/24 10.20.1.1/24 default
 	make_vethpair veth0 $nscgw $nsrgw 10.100.1.1/24 none
 	make_vethpair veth0 $nssgw $nsrgw 10.100.1.2/24 none
-	make_vethpair veth0 $nsr $nsrgw 10.100.1.3/24 none
+	make_vethpair veth0 $nsr $nsrgw none none
+	#make_vethpair veth0 $nsr $nsrgw 10.100.1.3/24 none
 	#make_vethpair veth0 $nsr2 $nsrgw 10.100.1.4/24 10.100.1.104/24 default
 
 	# bridge domain
@@ -203,13 +215,12 @@ case "$1" in
 	ip_ns $nsrgw link set sgw-veth0 master br0
 	ip_ns $nsrgw link set router-veth0 master br0
 	ip_ns $nsrgw addr add 10.100.1.101/24 dev br0
-
 	# routes
 	ip_ns $nscgw route add default via 10.100.1.3 dev veth0
 	ip_ns $nssgw route add default via 10.100.1.3 dev veth0
 	ip_ns $nsrgw route add 10.10.1.0/24 via 10.100.1.1 dev br0
 	ip_ns $nsrgw route add 10.20.1.0/24 via 10.100.1.2 dev br0
-	ip_ns $nsr route add default via 10.100.1.101 dev veth0
+	#ip_ns $nsr route add default via 10.100.1.101 dev veth0
 	
 	#ip_ns $nscgw route add 10.10.1.0/24 via 10.10.1.2 dev client-veth0
 	#ip_ns $nssgw route add 10.20.1.0/24 via 10.20.1.2 dev server-veth0
@@ -244,8 +255,10 @@ case "$1" in
 	exec_ns $nsr $vpp -c vpp1.conf
 	exec_ns $nsr $vpp -c vpp2.conf
 	sleep 2
-	create_vpp_interface vpp1 10.100.1.0/24 10.100.1.3/24 10.100.1.103/24 veth0
-	create_vpp_interface vpp2 10.100.1.0/24 10.100.1.4/24 10.100.1.103/24 veth0
+	create_vpp_interface vpp1 10.100.1.0/24 10.100.1.3/24 10.100.1.101/24 veth0
+	vppctl_with vpp1 ip route add 0.0.0.0/0 via 10.100.1.101 host-veth0
+	#create_vpp_interface vpp2 10.100.1.0/24 10.100.1.4/24 10.100.1.101/24 veth0
+	#ip_ns $nsr route add default via 10.100.1.101 dev veth0
 	
 	for i in ${!router_ids[@]}; do
 	id=${router_ids[$i]}
@@ -258,7 +271,7 @@ case "$1" in
 	    #rule="$rule permit+reflect proto 6 dst $t/32," # icmp
 	    rule="$rule permit+reflect proto 6 dst $t/32 desc {$t} ," # icmp
 	    #rule="$rule permit proto 6 dst $t/32 desc {$t}," # icmp
-	    rule1="$rule1 deny proto 6 src $t/32 desc {hmm-$t} ," # icmp
+	    rule1="$rule1 permit+reflect proto 6 src $t/32 desc {hmm-$t} ," # icmp
 	done
 	rule=${rule%,}
 	rule1=${rule1%,}
@@ -267,9 +280,11 @@ case "$1" in
 	vppctl_with $id set acl-plugin acl $rule1 tag example_permit_1
 	vppctl_with $id set acl-plugin acl deny # tag example_deny_0
 	#$vppctl set acl-plugin acl permit # tag example_deny_0
-	vppctl_with $id set acl-plugin interface host-veth0 input acl 0
+	#vppctl_with $id set acl-plugin interface host-veth0 input acl 0
+	vppctl_with $id set acl-plugin interface host-veth0 input acl 1
 	vppctl_with $id set acl-plugin interface host-veth0 input acl 2
-	vppctl_with $id set acl-plugin interface host-veth0 output acl 0
+	#vppctl_with $id set acl-plugin interface host-veth0 output acl 0
+	vppctl_with $id set acl-plugin interface host-veth0 output acl 1
 	vppctl_with $id set acl-plugin interface host-veth0 output acl 2
 	vppctl_with $id set acl-plugin reclassify-sessions 1
 	vppctl_with $id show acl-plugin interface sw_if_index 1 acl
@@ -328,7 +343,7 @@ case "$1" in
 	;;
     pings)
 	while true; do
-	    exec_ns ${entity_nss[0]} nping --tcp 10.10.2.2 -c 20 --delay 0.1
+	    exec_ns ${entity_nss[0]} nping --tcp 10.20.1.2 -c 20 --delay 0.1
 	    sleep 10
 	done
 	;;
