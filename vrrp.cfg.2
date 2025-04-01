@@ -1,0 +1,17 @@
+#sudo ip link add veth.vpp type veth peer name veth.vpp2
+ip table add 1
+create host-interface name veth.vpp
+set interface state host-veth.vpp up
+#set interface ip table host-veth.vpp 1
+set interface ip addr host-veth.vpp 20.0.0.101/24
+##ip route add 20.0.0.0/24 table 0 via host-veth.vpp
+
+create host-interface name veth.vpp2
+set interface state host-veth.vpp2 up
+#set interface ip table host-veth.vpp2 1
+set interface ip addr host-veth.vpp2 30.0.0.101/24
+##ip route add 30.0.0.0/24 table 0 via host-veth.vpp2
+
+vrrp vr add host-veth.vpp vr_id 1 unicast accept_mode hw_mac 20.0.0.100
+vrrp peers host-veth.vpp vr_id 1 20.0.0.102 30.0.0.102
+vrrp proto start host-veth.vpp vr_id 1
